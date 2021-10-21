@@ -6,9 +6,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextEditor", "TextEditor\TextEditor.vcxproj", "{28035AE1-9200-4194-87CE-B5DD5ECA2043}"
 	ProjectSection(ProjectDependencies) = postProject
 		{84FC1A56-C93B-4014-81E4-3D7F70D6EE66} = {84FC1A56-C93B-4014-81E4-3D7F70D6EE66}
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC} = {94D02D90-DC20-4551-8F24-82E2EC331DAC}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WndDesign", "..\WndDesign\WndDesign\WndDesign.vcxproj", "{84FC1A56-C93B-4014-81E4-3D7F70D6EE66}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BlockStore", "..\BlockStore\BlockStore\BlockStore.vcxproj", "{94D02D90-DC20-4551-8F24-82E2EC331DAC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +37,14 @@ Global
 		{84FC1A56-C93B-4014-81E4-3D7F70D6EE66}.Release|x64.Build.0 = Release|x64
 		{84FC1A56-C93B-4014-81E4-3D7F70D6EE66}.Release|x86.ActiveCfg = Release|Win32
 		{84FC1A56-C93B-4014-81E4-3D7F70D6EE66}.Release|x86.Build.0 = Release|Win32
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Debug|x64.ActiveCfg = Debug|x64
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Debug|x64.Build.0 = Debug|x64
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Debug|x86.ActiveCfg = Debug|Win32
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Debug|x86.Build.0 = Debug|Win32
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Release|x64.ActiveCfg = Release|x64
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Release|x64.Build.0 = Release|x64
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Release|x86.ActiveCfg = Release|Win32
+		{94D02D90-DC20-4551-8F24-82E2EC331DAC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
