@@ -3,7 +3,13 @@
 #include "WndDesign/widget/TitleBarFrame.h"
 
 
-class MainFrame : public WndDesign::TitleBarFrame {
+BEGIN_NAMESPACE(WndDesign)
+
+
+class MainFrame : public TitleBarFrame {
 public:
 	MainFrame();
 };
+
+
+END_NAMESPACE(WndDesign)

@@ -1,9 +1,12 @@
 #include "MainFrame.h"
 #include "TextView.h"
 
-#include "WndDesign/frame/ClipFrame.h"
 #include "WndDesign/frame/PaddingFrame.h"
 #include "WndDesign/widget/ScrollBox.h"
+
+
+
+BEGIN_NAMESPACE(WndDesign)
 
 
 struct MainFrameStyle : TitleBarFrame::Style {
@@ -24,10 +27,11 @@ MainFrame::MainFrame() :
 		new ScrollBox{
 			new PaddingFrame<Assigned, Auto>{
 				Margin(20, 10, 20, 10),
-				new ClipFrame<Assigned, Auto>{
-					new TextView
-				}
+				new TextView
 			}
 		}
 	) {
 }
+
+
+END_NAMESPACE(WndDesign)
