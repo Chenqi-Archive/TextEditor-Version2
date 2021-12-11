@@ -1,2 +1,2 @@
 # TextEditor
-A hierarchical text editor
+A simple text editor
