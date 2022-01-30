@@ -1,11 +1,14 @@
 #pragma once
 
 #include "WndDesign/window/wnd_traits.h"
+#include "WndDesign/frame/ScrollFrame.h"
 #include "WndDesign/figure/text_block.h"
 #include "WndDesign/common/unicode_helper.h"
 #include "WndDesign/message/timer.h"
 #include "WndDesign/message/ime.h"
 #include "WndDesign/message/mouse_tracker.h"
+#include "WndDesign/wrapper/Padding.h"
+#include "WndDesign/wrapper/Background.h"
 
 
 BEGIN_NAMESPACE(WndDesign)
@@ -15,6 +18,10 @@ class TextView : public WndType<Assigned, Auto>, private ImeApi {
 public:
 	TextView();
 	~TextView();
+
+	// parent
+private:
+	ScrollFrame<Vertical>& GetScrollFrame() { return static_cast<ScrollFrame<Vertical>&>(GetParent()); }
 
 	// text
 private:
@@ -33,15 +40,21 @@ private:
 private:
 	using HitTestInfo = TextBlockHitTestInfo;
 
-	// layout and paint
+	// layout
 private:
-	uint width_ref = 0;
+	float width_ref = 0.0f;
 protected:
-	Size UpdateSize();
+	void UpdateSize() { text_block.UpdateSizeRef(Size(width_ref, length_max)); }
 	void TextUpdated();
 protected:
-	virtual Size OnSizeRefUpdate(Size size_ref) override;
+	virtual void OnSizeRefUpdate(Size size_ref) override;
+	virtual Size GetSize() override { return Size(width_ref, text_block.GetSize().height); }
+
+	// paint
 protected:
+	Rect redraw_region = region_empty;
+protected:
+	virtual Rect GetRedrawRegion() { return redraw_region; }
 	virtual void OnDraw(FigureQueue& figure_queue, Rect draw_region) override;
 
 	// caret
@@ -55,7 +68,7 @@ private:
 	ushort caret_blink_time = 0;
 private:
 	bool IsCaretVisible() const { return caret_state == CaretState::Show || caret_state == CaretState::BlinkShow; }
-	void RedrawCaretRegion() { Redraw(caret_region); }
+	void RedrawCaretRegion() { redraw_region = caret_region; Redraw(); }
 private:
 	void HideCaret();
 	void StartBlinkingCaret();
@@ -63,7 +76,7 @@ private:
 
 	// caret position
 private:
-	static constexpr uint caret_width = 1;
+	static constexpr float caret_width = 1.0f;
 	enum class CaretMoveDirection { Left, Right, Up, Down, Home, End };
 private:
 	uint caret_text_position = 0;
@@ -84,7 +97,7 @@ private:
 	Rect selection_region_union;
 private:
 	void UpdateSelectionRegion();
-	void RedrawSelectionRegion() { Redraw(selection_region_union); }
+	void RedrawSelectionRegion() { redraw_region = selection_region_union; Redraw(); }
 private:
 	bool HasSelection() const { return selection_end > selection_begin; }
 	void DoSelection(Point mouse_move_position);
@@ -123,6 +136,16 @@ protected:
 	virtual void OnMouseMsg(MouseMsg msg) override;
 	virtual void OnKeyMsg(KeyMsg msg) override;
 	virtual void OnNotifyMsg(NotifyMsg msg) override;
+};
+
+
+class TextViewDecorated : public Decorate<TextView, Padding, SolidColorBackground> {
+public:
+	TextViewDecorated() {
+		cursor = Cursor::Text;
+		background = Color::White;
+		padding = Margin(20, 10, 20, 10);
+	}
 };
 
 

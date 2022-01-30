@@ -23,7 +23,7 @@ struct TextViewStyle : TextBlockStyle {
 
 	TextViewStyle() {
 		paragraph.line_height(25px);
-		font.family(L"Calibri", L"DengXian").size(20);
+		font.family(L"Calibri", L"Segoe UI Emoji", L"DengXian").size(20);
 	}
 }edit_view_style;
 
@@ -58,24 +58,20 @@ TextView::TextView() : ImeApi(this), text(LoadText()), text_block(edit_view_styl
 
 TextView::~TextView() { SaveText(std::move(text)); }
 
-Size TextView::UpdateSize() { return Size(width_ref, text_block.UpdateSizeRef(Size(width_ref, length_max)).height); }
-
 void TextView::TextUpdated() {
 	text_block.SetText(edit_view_style, text);
 	word_break_iterator.SetText(text);
-	SizeUpdated(UpdateSize());
-	Redraw(region_infinite);
+	UpdateSize(); redraw_region = region_infinite;
+	SizeUpdated(); Redraw();
 }
 
-Size TextView::OnSizeRefUpdate(Size size_ref) {
-	width_ref = size_ref.width; Size size = UpdateSize();
+void TextView::OnSizeRefUpdate(Size size_ref) {
+	width_ref = size_ref.width; UpdateSize();
 	UpdateCaretRegion(text_block.HitTestTextPosition(caret_text_position));
 	UpdateSelectionRegion();
-	return size;
 }
 
 void TextView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
-	figure_queue.add(draw_region.point, new Rectangle(draw_region.size, Color::White));
 	figure_queue.add(point_zero, new TextBlockFigure(text_block, edit_view_style.font._color));
 	if (IsCaretVisible() && !caret_region.Intersect(draw_region).IsEmpty()) {
 		figure_queue.add(caret_region.point, new Rectangle(caret_region.size, edit_view_style.edit._caret_color));
@@ -129,6 +125,8 @@ void TextView::UpdateCaretRegion(const HitTestInfo& info) {
 		caret_text_position += info.text_length;
 		caret_region.point.x += static_cast<int>(info.geometry_region.size.width);
 	}
+	Point caret_point = caret_region.point * GetChildTransform(*this);
+	GetScrollFrame().ScrollIntoView(caret_point.y, caret_region.size.height);
 	RedrawCaretRegion();
 }
 
@@ -276,7 +274,7 @@ void TextView::OnImeCompositionBegin() {
 		ime_composition_end = ime_composition_begin;
 		ime_position = caret_region.RightBottom();
 	}
-	ImeSetPosition(ime_position);
+	ImeSetPosition(ime_position * GetChildTransform(*this));
 }
 
 void TextView::OnImeComposition(std::wstring str) {
@@ -307,7 +305,7 @@ void TextView::OnMouseMsg(MouseMsg msg) {
 	switch (msg.type) {
 	case MouseMsg::LeftDown: SetFocus(); SetCaret(msg.point); SetCapture(); break;
 	case MouseMsg::LeftUp: ReleaseCapture(); break;
-	case MouseMsg::WheelVertical: return PassMouseMsg(msg);
+	case MouseMsg::WheelVertical: GetScrollFrame().Scroll((float)-msg.wheel_delta); break;
 	}
 	switch (mouse_tracker.Track(msg)) {
 	case MouseTrackMsg::LeftDoubleClick: SelectWord(); break;
@@ -359,7 +357,6 @@ void TextView::OnKeyMsg(KeyMsg msg) {
 
 void TextView::OnNotifyMsg(NotifyMsg msg) {
 	switch (msg) {
-	case NotifyMsg::MouseHover: SetCursor(Cursor::Text); break;
 	case NotifyMsg::LoseFocus: ClearSelection(); HideCaret(); break;
 	}
 }

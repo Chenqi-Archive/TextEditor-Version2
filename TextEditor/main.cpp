@@ -9,4 +9,5 @@ using namespace WndDesign;
 int main() {
 	global.AddWnd(new MainFrame);
 	global.MessageLoop();
+	return 0;
 }
