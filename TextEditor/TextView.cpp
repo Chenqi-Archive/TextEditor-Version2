@@ -1,15 +1,11 @@
 #include "TextView.h"
+#include "ScrollView.h"
 #include "WndDesign/figure/shape.h"
 #include "WndDesign/system/clipboard.h"
-
-#include "data_format.h"
-#include "BlockStore/block_manager.h"
-#include "BlockStore/file_manager.h"
 
 
 BEGIN_NAMESPACE(WndDesign)
 
-BEGIN_NAMESPACE(Anonymous)
 
 struct TextViewStyle : TextBlockStyle {
 	struct EditStyle {
@@ -28,35 +24,11 @@ struct TextViewStyle : TextBlockStyle {
 }edit_view_style;
 
 
-std::wstring LoadText() {
-	using namespace BlockStore;
-	try {
-		BlockManager manager(std::make_unique<FileManager>(file));
-		BlockRef<TextData> root; manager.LoadRootRef(root);
-		return root.Read()->text;
-	} catch (std::exception&) {
-		return {};
-	}
-}
-
-void SaveText(std::wstring text) {
-	using namespace BlockStore;
-	try {
-		BlockManager manager(std::make_unique<FileManager>(file));
-		BlockRef<TextData> root(manager);
-		root.Write()->text = text;
-		manager.Format(); manager.SaveRootRef(root);
-	} catch (std::exception&) {}
-}
-
-END_NAMESPACE(Anonymous)
-
-
-TextView::TextView() : ImeApi(this), text(LoadText()), text_block(edit_view_style, text) {
+TextView::TextView(BlockRef<TextData> block, ScrollView& scroll_view) :
+	ImeApi(this), block(std::move(block)), scroll_view(scroll_view), text(Load()), text_block(edit_view_style, text) {
+	cursor = Cursor::Text;
 	word_break_iterator.SetText(text);
 }
-
-TextView::~TextView() { SaveText(std::move(text)); }
 
 void TextView::TextUpdated() {
 	text_block.SetText(edit_view_style, text);
@@ -67,8 +39,8 @@ void TextView::TextUpdated() {
 
 void TextView::OnSizeRefUpdate(Size size_ref) {
 	width_ref = size_ref.width; UpdateSize();
-	UpdateCaretRegion(text_block.HitTestTextPosition(caret_text_position));
-	UpdateSelectionRegion();
+	if (IsCaretVisible()) { UpdateCaretRegion(text_block.HitTestTextPosition(caret_text_position)); }
+	if (HasSelection()) { UpdateSelectionRegion(); }
 }
 
 void TextView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
@@ -123,23 +95,14 @@ void TextView::UpdateCaretRegion(const HitTestInfo& info) {
 	caret_region.size = Size(caret_width, info.geometry_region.size.height);
 	if (info.is_trailing_hit) {
 		caret_text_position += info.text_length;
-		caret_region.point.x += static_cast<int>(info.geometry_region.size.width);
+		caret_region.point.x += info.geometry_region.size.width;
 	}
-	Point caret_point = caret_region.point * GetChildTransform(*this);
-	GetScrollFrame().ScrollIntoView(caret_point.y, caret_region.size.height);
+	scroll_view.ScrollIntoView(Rect(GetListView().ConvertPoint(*this, caret_region.point), caret_region.size));
 	RedrawCaretRegion();
 }
 
-void TextView::SetCaret(Point point) {
-	HitTestInfo info = text_block.HitTestPoint(point);
-	UpdateCaretRegion(info); caret_state = CaretState::Show;
-	ClearSelection();
-	mouse_down_text_position = caret_text_position;
-}
-
-void TextView::SetCaret(uint text_position, bool is_trailing_hit) {
-	HitTestInfo info = text_block.HitTestTextPosition(text_position);
-	info.is_trailing_hit = is_trailing_hit;
+void TextView::SetCaret(HitTestInfo info) {
+	SetFocus();
 	UpdateCaretRegion(info); caret_state = CaretState::Show;
 	ClearSelection();
 }
@@ -148,31 +111,37 @@ void TextView::MoveCaret(CaretMoveDirection direction) {
 	switch (direction) {
 	case CaretMoveDirection::Left:
 		if (HasSelection()) {
-			SetCaret(selection_begin, false);
+			SetCaret(selection_begin);
 		} else {
 			if (caret_text_position > 0) {
-				SetCaret(caret_text_position - 1, false);
+				SetCaret(caret_text_position - 1);
+			} else {
+				GetListView().SetCaretBefore(*this);
 			}
 		}
 		break;
 	case CaretMoveDirection::Right:
 		if (HasSelection()) {
-			SetCaret(selection_end, false);
+			SetCaret(selection_end);
 		} else {
-			SetCaret(caret_text_position, true);
+			if (caret_text_position < text.length()) {
+				SetCaret(caret_text_position + 1);
+			} else {
+				GetListView().SetCaretAfter(*this);
+			}
 		}
 		break;
 	case CaretMoveDirection::Up:
-		SetCaret(caret_region.Center() - Vector(0, caret_region.size.height));
+		GetListView().SetCaretAt(*this, caret_region.Center() - Vector(0, caret_region.size.height));
 		break;
 	case CaretMoveDirection::Down:
-		SetCaret(caret_region.Center() + Vector(0, caret_region.size.height));
+		GetListView().SetCaretAt(*this, caret_region.Center() + Vector(0, caret_region.size.height));
 		break;
 	case CaretMoveDirection::Home:
-		SetCaret(Point(0, caret_region.Center().y));
+		SetCaret(0);
 		break;
 	case CaretMoveDirection::End:
-		SetCaret(Point(position_max, caret_region.Center().y));
+		SetCaret((size_t)-1);
 		break;
 	}
 }
@@ -204,60 +173,53 @@ void TextView::SelectWord() {
 	UpdateSelectionRegion(); HideCaret();
 }
 
-void TextView::SelectParagraph() {
-	uint length = (uint)text.length();
-	selection_begin = caret_text_position - 1; selection_end = caret_text_position;
-	while (selection_begin < length && text[selection_begin] != L'\n') { selection_begin--; }
-	while (selection_end < length && text[selection_end] != L'\n') { selection_end++; }
-	selection_begin++; selection_end++;
-	UpdateSelectionRegion(); HideCaret();
-}
-
 void TextView::SelectAll() {
 	selection_begin = 0;
-	selection_end = (uint)text.length();
+	selection_end = text.length();
 	UpdateSelectionRegion(); HideCaret();
 }
 
 void TextView::ClearSelection() {
 	selection_begin = selection_end = 0;
-	selection_info.clear();
-	RedrawSelectionRegion();
-	selection_region_union = region_empty;
+	if (!selection_region_union.IsEmpty()) {
+		selection_info.clear();
+		RedrawSelectionRegion();
+		selection_region_union = region_empty;
+	}
 }
 
 void TextView::Insert(wchar ch) {
 	if (HasSelection()) {
 		ReplaceText(selection_begin, selection_end - selection_begin, ch);
-		SetCaret(selection_begin + 1, false);
+		SetCaret(selection_begin + 1);
 	} else {
 		InsertText(caret_text_position, ch);
-		SetCaret(caret_text_position + 1, false);
+		SetCaret(caret_text_position + 1);
 	}
 }
 
 void TextView::Insert(std::wstring str) {
 	if (HasSelection()) {
 		ReplaceText(selection_begin, selection_end - selection_begin, str);
-		SetCaret(selection_begin + (uint)str.length(), false);
+		SetCaret(selection_begin + str.length());
 	} else {
 		InsertText(caret_text_position, str);
-		SetCaret(caret_text_position + (uint)str.length(), false);
+		SetCaret(caret_text_position + str.length());
 	}
 }
 
 void TextView::Delete(bool is_backspace) {
 	if (HasSelection()) {
 		DeleteText(selection_begin, selection_end - selection_begin);
-		SetCaret(selection_begin, false);
+		SetCaret(selection_begin);
 	} else {
 		if (is_backspace) {
-			if (caret_text_position == 0) { return; }
-			uint previous_caret_position = caret_text_position;
-			SetCaret(caret_text_position - 1, false);
+			if (caret_text_position == 0) { return GetListView().Delete(*this); }
+			size_t previous_caret_position = caret_text_position;
+			SetCaret(caret_text_position - 1);
 			DeleteText(caret_text_position, previous_caret_position - caret_text_position);
 		} else {
-			if (caret_text_position >= text.length()) { return; }
+			if (caret_text_position >= text.length()) { return GetListView().DeleteAfter(*this); }
 			DeleteText(caret_text_position, GetCharacterLength(caret_text_position));
 		}
 	}
@@ -279,8 +241,8 @@ void TextView::OnImeCompositionBegin() {
 
 void TextView::OnImeComposition(std::wstring str) {
 	ReplaceText(ime_composition_begin, ime_composition_end - ime_composition_begin, str);
-	ime_composition_end = ime_composition_begin + (uint)str.length();
-	SetCaret(ime_composition_end, false);
+	ime_composition_end = ime_composition_begin + str.length();
+	SetCaret(ime_composition_end);
 }
 
 void TextView::Cut() {
@@ -303,13 +265,13 @@ void TextView::Paste() {
 
 void TextView::OnMouseMsg(MouseMsg msg) {
 	switch (msg.type) {
-	case MouseMsg::LeftDown: SetFocus(); SetCaret(msg.point); SetCapture(); break;
+	case MouseMsg::LeftDown: SetCaret(msg.point); mouse_down_text_position = caret_text_position; SetCapture(); break;
 	case MouseMsg::LeftUp: ReleaseCapture(); break;
-	case MouseMsg::WheelVertical: GetScrollFrame().Scroll((float)-msg.wheel_delta); break;
+	case MouseMsg::WheelVertical: scroll_view.Scroll((float)-msg.wheel_delta); break;
 	}
 	switch (mouse_tracker.Track(msg)) {
 	case MouseTrackMsg::LeftDoubleClick: SelectWord(); break;
-	case MouseTrackMsg::LeftTripleClick: SelectParagraph(); break;
+	case MouseTrackMsg::LeftTripleClick: SelectAll(); break;
 	case MouseTrackMsg::LeftDrag: DoSelection(msg.point); break;
 	}
 	StartBlinkingCaret();
@@ -326,7 +288,7 @@ void TextView::OnKeyMsg(KeyMsg msg) {
 		case Key::Home: MoveCaret(CaretMoveDirection::Home); break;
 		case Key::End: MoveCaret(CaretMoveDirection::End); break;
 
-		case Key::Enter: Insert(L'\n'); break;
+		case Key::Enter: GetListView().InsertAfter(*this, caret_text_position); break;
 		case Key::Tab: Insert(L'\t'); break;
 
 		case Key::Backspace: Delete(true); break;

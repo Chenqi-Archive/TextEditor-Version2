@@ -19,13 +19,17 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ListView.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainFrame.cpp" />
+    <ClCompile Include="ScrollView.cpp" />
     <ClCompile Include="TextView.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ListView.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="data_format.h" />
+    <ClInclude Include="ScrollView.h" />
     <ClInclude Include="TextView.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

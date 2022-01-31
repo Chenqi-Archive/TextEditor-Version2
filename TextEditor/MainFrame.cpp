@@ -1,7 +1,5 @@
 #include "MainFrame.h"
-#include "TextView.h"
-
-#include "WndDesign/widget/ScrollBox.h"
+#include "ScrollView.h"
 
 
 BEGIN_NAMESPACE(WndDesign)
@@ -22,9 +20,7 @@ struct MainFrameStyle : TitleBarFrame::Style {
 MainFrame::MainFrame() :
 	TitleBarFrame(
 		MainFrameStyle(),
-		new ScrollBox<Vertical>{
-			new TextViewDecorated
-		}
+		new ScrollView()
 	) {
 }
 
