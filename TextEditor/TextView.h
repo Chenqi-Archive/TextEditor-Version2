@@ -1,13 +1,9 @@
 #pragma once
 
-#include "ListView.h"
-
 #include "WndDesign/window/wnd_traits.h"
 #include "WndDesign/figure/text_block.h"
 #include "WndDesign/common/unicode_helper.h"
-#include "WndDesign/message/timer.h"
 #include "WndDesign/message/ime.h"
-#include "WndDesign/message/mouse_tracker.h"
 
 #include "data_format.h"
 
@@ -20,17 +16,16 @@ using namespace BlockStore;
 BEGIN_NAMESPACE(WndDesign)
 
 class ScrollView;
+class ListView;
 
 
 class TextView : public WndType<Assigned, Auto>, private ImeApi {
 public:
-	TextView(BlockRef<TextData> block, ScrollView& scroll_view);
+	TextView(BlockRef<TextData> block);
 
 	// parent
 private:
-	ScrollView& scroll_view;
-private:
-	ListView& GetListView() { return static_cast<ListView&>(GetParent()); }
+	ListView& GetListView();
 
 	// data
 private:
@@ -78,31 +73,17 @@ protected:
 
 	// caret
 private:
-	static constexpr ushort caret_blink_period = 500;  // 500ms
-	static constexpr ushort caret_blink_expire_time = 20000;  // 20s
-	enum class CaretState : ushort { Hide, Show, BlinkShow, BlinkHide };
-private:
-	Timer caret_timer = Timer(std::bind(&TextView::BlinkCaret, this));
-	CaretState caret_state = CaretState::Hide;
-	ushort caret_blink_time = 0;
-private:
-	bool IsCaretVisible() const { return caret_state == CaretState::Show || caret_state == CaretState::BlinkShow; }
-	void RedrawCaretRegion() { redraw_region = caret_region; Redraw(); }
-private:
-	void HideCaret();
-	void StartBlinkingCaret();
-	void BlinkCaret();
-
-	// caret position
-private:
 	static constexpr float caret_width = 1.0f;
 	enum class CaretMoveDirection { Left, Right, Up, Down, Home, End };
 private:
-	size_t caret_text_position = 0;
+	size_t caret_position = 0;
 	Rect caret_region = region_empty;
 private:
+	bool HasCaret() const { return !caret_region.IsEmpty(); }
+	void ClearCaret() { caret_region = region_empty; }
 	void UpdateCaretRegion(const HitTestInfo& info);
 public:
+	size_t GetCaretPosition() const { return caret_position; }
 	void SetCaret(HitTestInfo info);
 	void SetCaret(Point point) { SetCaret(text_block.HitTestPoint(point)); }
 	void SetCaret(size_t text_position) { SetCaret(text_block.HitTestTextPosition(text_position)); }
@@ -110,23 +91,23 @@ public:
 
 	// selection
 private:
-	size_t mouse_down_text_position = 0;
 	size_t selection_begin = 0;
-	size_t selection_end = 0;
+	size_t selection_range_begin = 0;
+	size_t selection_range_end = 0;
 	std::vector<HitTestInfo> selection_info;
 	Rect selection_region_union;
 private:
+	bool HasSelection() const { return selection_range_end > selection_range_begin; }
 	void UpdateSelectionRegion();
 	void RedrawSelectionRegion() { redraw_region = selection_region_union; Redraw(); }
 public:
-	bool HasSelection() const { return selection_end > selection_begin; }
+	void BeginSelection() { selection_begin = caret_position; }
 	void DoSelection(Point mouse_move_position);
-	void SelectWord();
-	void SelectAll();
 	void ClearSelection();
+	void SelectWord();
 
 	// keyboard input
-private:
+public:
 	void Insert(wchar ch);
 	void Insert(std::wstring str);
 	void Delete(bool is_backspace);
@@ -148,11 +129,9 @@ private:
 
 	// message
 private:
-	MouseTracker mouse_tracker;
 	bool is_ctrl_down = false;
 	bool is_shift_down = false;
 protected:
-	virtual void OnMouseMsg(MouseMsg msg) override;
 	virtual void OnKeyMsg(KeyMsg msg) override;
 	virtual void OnNotifyMsg(NotifyMsg msg) override;
 };
