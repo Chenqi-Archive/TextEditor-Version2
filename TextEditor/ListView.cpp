@@ -42,7 +42,7 @@ ListView::ListView(ScrollView& scroll_view) : ListLayout(list_view_style.list_la
 			Initialize();
 		} else {
 			for (auto item : *list) {
-				AppendChild(new TextView(item));
+				AppendChild(new TextView(item, scroll_view));
 			}
 		}
 	} catch (std::runtime_error&) {
@@ -63,11 +63,11 @@ ListView::~ListView() {
 
 TextView& ListView::Get(size_t index) { return static_cast<TextView&>(*child_list[index].child); }
 
-void ListView::Initialize() { AppendChild(new TextView(BlockRef<TextData>(manager))); }
+void ListView::Initialize() { AppendChild(new TextView(BlockRef<TextData>(manager), scroll_view)); }
 
 void ListView::InsertAfter(TextView& child) {
 	size_t index = GetChildData(child) + 1;
-	InsertChild(index, new TextView(BlockRef<TextData>(manager)));
+	InsertChild(index, new TextView(BlockRef<TextData>(manager), scroll_view));
 	TextView& text_view = Get(index); size_t pos = child.GetCaretPosition();
 	text_view.SetText(child.GetText().substr(pos)); child.DeleteText(pos, (size_t)-1);
 	text_view.SetCaret(0);
@@ -116,56 +116,11 @@ void ListView::OnSizeRefUpdate(Size size_ref) {
 
 void ListView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
 	ListLayout::OnDraw(figure_queue, draw_region);
-	if (IsCaretVisible() && !caret_region.Intersect(draw_region).IsEmpty()) {
-		figure_queue.add(caret_region.point, new Rectangle(caret_region.size, list_view_style.edit._caret_color));
-	}
 	if (selection_range_end > selection_range_begin) {
 		figure_queue.add(selection_region.point, new Rectangle(selection_region.size, list_view_style.edit._selection_color));
 	}
 }
 
-void ListView::UpdateCaretRegion(TextView& child, Rect caret_region) {
-	caret_region += GetChildRegion(child).point - point_zero;
-	if (this->caret_region == caret_region) { return; }
-	RedrawCaretRegion();
-	this->caret_region = caret_region;
-	scroll_view.ScrollIntoView(Rect(caret_region.point * GetTransform(Get(0)), caret_region.size));
-	RedrawCaretRegion();
-}
-
-void ListView::ShowCaret() { caret_state = CaretState::Show; }
-
-void ListView::HideCaret() {
-	if (caret_state != CaretState::Hide) {
-		caret_state = CaretState::Hide;
-		RedrawCaretRegion();
-	}
-}
-
-void ListView::StartBlinkingCaret() {
-	if (caret_state != CaretState::Hide) {
-		if (!caret_timer.IsSet()) {
-			caret_timer.Set(caret_blink_period);
-		}
-		caret_blink_time = 0;
-	}
-}
-
-void ListView::BlinkCaret() {
-	caret_blink_time += caret_blink_period;
-	if (caret_blink_time >= caret_blink_expire_time) {
-		caret_state = CaretState::Show;
-		caret_timer.Stop();
-		return;
-	}
-	switch (caret_state) {
-	case CaretState::Hide: caret_timer.Stop(); return;
-	case CaretState::Show:
-	case CaretState::BlinkShow: caret_state = CaretState::BlinkHide; break;
-	case CaretState::BlinkHide: caret_state = CaretState::BlinkShow; break;
-	}
-	RedrawCaretRegion();
-}
 
 void ListView::SetCaret(Point point) {
 	caret_position = HitTestPoint(point);
@@ -191,7 +146,7 @@ void ListView::SetCaretAt(TextView& child, Point point) {
 void ListView::UpdateSelectionRegion() {
 	RedrawSelectionRegion();
 	if (!HasSelection()) { selection_region = region_empty; return; }
-	HideCaret(); SetFocus();
+	caret.Hide(); SetFocus();
 	selection_region.point.x = 0.0f;
 	selection_region.point.y = child_list[selection_range_begin].BeginOffset();
 	selection_region.size.width = size.width;
@@ -213,7 +168,7 @@ void ListView::DoSelection(Point point) {
 		return;
 	}
 	Get(selection_begin).ClearSelection();
-	scroll_view.ScrollIntoView(Rect(point_zero * GetChildTransform(Get(selection_range_end)), Size(0.0f, child_list[selection_range_end].length)));
+	scroll_view.ScrollIntoView(*this, Rect(point_zero * GetChildTransform(Get(selection_range_end)), Size(0.0f, child_list[selection_range_end].length)));
 	if (selection_range_end < selection_range_begin) { std::swap(selection_range_begin, selection_range_end); }
 	selection_range_end++;
 	UpdateSelectionRegion();
@@ -289,7 +244,7 @@ void ListView::OnMouseMsg(MouseMsg msg) {
 	case MouseTrackMsg::LeftDoubleClick: SelectWord(); break;
 	case MouseTrackMsg::LeftTripleClick: SelectParagraph(); break;
 	}
-	StartBlinkingCaret();
+	caret.Blink();
 }
 
 void ListView::OnKeyMsg(KeyMsg msg) {
@@ -319,7 +274,7 @@ void ListView::OnKeyMsg(KeyMsg msg) {
 		if (!iswcntrl(msg.ch)) { Insert(msg.ch); };
 		break;
 	}
-	StartBlinkingCaret();
+	caret.Blink();
 }
 
 

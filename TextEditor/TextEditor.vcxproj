@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="caret.cpp" />
     <ClCompile Include="ListView.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainFrame.cpp" />
@@ -26,6 +27,7 @@
     <ClCompile Include="TextView.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="caret.h" />
     <ClInclude Include="ListView.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="data_format.h" />

@@ -25,8 +25,8 @@ struct TextViewStyle : TextBlockStyle {
 }text_view_style;
 
 
-TextView::TextView(BlockRef<TextData> block) :
-	ImeApi(this), block(std::move(block)), text(Load()), text_block(text_view_style, text) {
+TextView::TextView(BlockRef<TextData> block, ScrollView& scroll_view) :
+	ImeApi(this), scroll_view(scroll_view), block(std::move(block)), text(Load()), text_block(text_view_style, text) {
 	cursor = Cursor::Text;
 	word_break_iterator.SetText(text);
 }
@@ -36,18 +36,22 @@ ListView& TextView::GetListView() { return static_cast<ListView&>(GetParent()); 
 void TextView::TextUpdated() {
 	text_block.SetText(text_view_style, text);
 	word_break_iterator.SetText(text);
-	UpdateSize(); redraw_region = region_infinite;
-	SizeUpdated(); Redraw();
+	UpdateSize();
+	SizeUpdated();
+	Redraw(region_infinite);
 }
 
 void TextView::OnSizeRefUpdate(Size size_ref) {
 	width_ref = size_ref.width; UpdateSize();
-	if (HasCaret()) { UpdateCaretRegion(text_block.HitTestTextPosition(caret_position)); }
+	if (IsCaretActive()) { UpdateCaretRegion(text_block.HitTestTextPosition(caret_position)); }
 	if (HasSelection()) { UpdateSelectionRegion(); }
 }
 
 void TextView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
 	figure_queue.add(point_zero, new TextBlockFigure(text_block, text_view_style.font._color));
+	if (IsCaretVisible() && !caret.Region().Intersect(draw_region).IsEmpty()) {
+		figure_queue.add(caret.Region().point, new Rectangle(caret.Region().size, text_view_style.edit._caret_color));
+	}
 	if (HasSelection()) {
 		for (auto& it : selection_info) {
 			auto& region = it.geometry_region; if (region.Intersect(draw_region).IsEmpty()) { continue; }
@@ -58,18 +62,20 @@ void TextView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
 
 void TextView::UpdateCaretRegion(const HitTestInfo& info) {
 	caret_position = info.text_position;
-	caret_region.point = info.geometry_region.point;
-	caret_region.size = Size(caret_width, info.geometry_region.size.height);
+	Point point = info.geometry_region.point;
+	Size size = Size(caret.width, info.geometry_region.size.height);
 	if (info.is_trailing_hit) {
 		caret_position += info.text_length;
-		caret_region.point.x += info.geometry_region.size.width;
+		point.x += info.geometry_region.size.width;
 	}
-	GetListView().UpdateCaretRegion(*this, caret_region);
+	Rect caret_region(point, size);
+	scroll_view.ScrollIntoView(*this, caret_region);
+	caret.UpdateRegion(*this, caret_region);
 }
 
 void TextView::SetCaret(HitTestInfo info) {
 	SetFocus();
-	UpdateCaretRegion(info); GetListView().ShowCaret();
+	UpdateCaretRegion(info); caret.Show();
 	ClearSelection();
 }
 
@@ -98,10 +104,10 @@ void TextView::MoveCaret(CaretMoveDirection direction) {
 		}
 		break;
 	case CaretMoveDirection::Up:
-		GetListView().SetCaretAt(*this, caret_region.Center() - Vector(0, caret_region.size.height));
+		GetListView().SetCaretAt(*this, caret.Region().Center() - Vector(0, caret.Region().size.height));
 		break;
 	case CaretMoveDirection::Down:
-		GetListView().SetCaretAt(*this, caret_region.Center() + Vector(0, caret_region.size.height));
+		GetListView().SetCaretAt(*this, caret.Region().Center() + Vector(0, caret.Region().size.height));
 		break;
 	case CaretMoveDirection::Home:
 		SetCaret(0);
@@ -113,7 +119,7 @@ void TextView::MoveCaret(CaretMoveDirection direction) {
 }
 
 void TextView::UpdateSelectionRegion() {
-    GetListView().HideCaret();
+	caret.Hide();
 	selection_info = text_block.HitTestTextRange(selection_range_begin, selection_range_end - selection_range_begin);
 	RedrawSelectionRegion();
 	selection_region_union = region_empty;
@@ -196,7 +202,7 @@ void TextView::OnImeCompositionBegin() {
 	} else {
 		ime_composition_begin = caret_position;
 		ime_composition_end = ime_composition_begin;
-		ime_position = caret_region.RightBottom();
+		ime_position = caret.Region().RightBottom();
 	}
 	ImeSetPosition(ime_position * GetChildTransform(*this));
 }
@@ -262,12 +268,12 @@ void TextView::OnKeyMsg(KeyMsg msg) {
 		if (!iswcntrl(msg.ch)) { Insert(msg.ch); };
 		break;
 	}
-	GetListView().StartBlinkingCaret();
+	caret.Blink();
 }
 
 void TextView::OnNotifyMsg(NotifyMsg msg) {
 	switch (msg) {
-	case NotifyMsg::LoseFocus: ClearSelection(); ClearCaret(); GetListView().HideCaret(); break;
+	case NotifyMsg::LoseFocus: ClearSelection(); caret.Hide(); break;
 	}
 }
 

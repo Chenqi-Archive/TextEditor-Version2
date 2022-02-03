@@ -30,6 +30,9 @@
     <ClCompile Include="ScrollView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="caret.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TextView.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ScrollView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="caret.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

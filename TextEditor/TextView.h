@@ -1,5 +1,7 @@
 #pragma once
 
+#include "caret.h"
+
 #include "WndDesign/window/wnd_traits.h"
 #include "WndDesign/figure/text_block.h"
 #include "WndDesign/common/unicode_helper.h"
@@ -21,10 +23,11 @@ class ListView;
 
 class TextView : public WndType<Assigned, Auto>, private ImeApi {
 public:
-	TextView(BlockRef<TextData> block);
+	TextView(BlockRef<TextData> block, ScrollView& scroll_view);
 
 	// parent
 private:
+	ScrollView& scroll_view;
 	ListView& GetListView();
 
 	// data
@@ -67,20 +70,20 @@ protected:
 	// paint
 protected:
 	Rect redraw_region = region_empty;
+public:
+	void Redraw(Rect region) { redraw_region = region; WndObject::Redraw(); }
 protected:
 	virtual Rect GetRedrawRegion() { return redraw_region; }
 	virtual void OnDraw(FigureQueue& figure_queue, Rect draw_region) override;
 
 	// caret
 private:
-	static constexpr float caret_width = 1.0f;
 	enum class CaretMoveDirection { Left, Right, Up, Down, Home, End };
 private:
 	size_t caret_position = 0;
-	Rect caret_region = region_empty;
 private:
-	bool HasCaret() const { return !caret_region.IsEmpty(); }
-	void ClearCaret() { caret_region = region_empty; }
+	bool IsCaretActive() const { return caret.IsActive() && caret.FocusWnd() == this; }
+	bool IsCaretVisible() const { return caret.IsVisible() && caret.FocusWnd() == this; }
 	void UpdateCaretRegion(const HitTestInfo& info);
 public:
 	size_t GetCaretPosition() const { return caret_position; }
@@ -99,7 +102,7 @@ private:
 private:
 	bool HasSelection() const { return selection_range_end > selection_range_begin; }
 	void UpdateSelectionRegion();
-	void RedrawSelectionRegion() { redraw_region = selection_region_union; Redraw(); }
+	void RedrawSelectionRegion() { Redraw(selection_region_union); }
 public:
 	void BeginSelection() { selection_begin = caret_position; }
 	void DoSelection(Point mouse_move_position);

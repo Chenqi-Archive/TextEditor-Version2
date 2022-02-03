@@ -3,7 +3,6 @@
 #include "WndDesign/layout/ListLayout.h"
 #include "WndDesign/wrapper/Padding.h"
 #include "WndDesign/wrapper/Background.h"
-#include "WndDesign/message/timer.h"
 #include "WndDesign/message/mouse_tracker.h"
 
 #include "data_format.h"
@@ -63,24 +62,7 @@ protected:
 
 	// caret
 private:
-	static constexpr ushort caret_blink_period = 500;  // 500ms
-	static constexpr ushort caret_blink_expire_time = 20000;  // 20s
-	enum class CaretState : ushort { Hide, Show, BlinkShow, BlinkHide };
-private:
-	Timer caret_timer = Timer([&]() { BlinkCaret(); });
-	CaretState caret_state = CaretState::Hide;
-	ushort caret_blink_time = 0;
 	size_t caret_position = 0;
-	Rect caret_region = region_empty;
-public:
-	bool IsCaretVisible() const { return caret_state == CaretState::Show || caret_state == CaretState::BlinkShow; }
-	void UpdateCaretRegion(TextView& child, Rect caret_region);
-	void RedrawCaretRegion() { redraw_region = caret_region; Redraw(); }
-public:
-	void ShowCaret();
-	void HideCaret();
-	void StartBlinkingCaret();
-	void BlinkCaret();
 private:
 	void SetCaret(Point point);
 public:
