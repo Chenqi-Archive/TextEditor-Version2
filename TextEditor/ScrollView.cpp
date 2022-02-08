@@ -5,7 +5,7 @@
 BEGIN_NAMESPACE(WndDesign)
 
 
-ScrollView::ScrollView() : SplitLayout{ new Frame(new ListViewDecorated(*this)), new Scrollbar() } {
+ScrollView::ScrollView() : SplitLayout{ new Frame(ListView::Create(*this)), new Scrollbar() } {
 	GetScrollbar().SetScrollFrame(GetScrollFrame());
 }
 

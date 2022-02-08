@@ -121,7 +121,6 @@ void ListView::OnDraw(FigureQueue& figure_queue, Rect draw_region) {
 	}
 }
 
-
 void ListView::SetCaret(Point point) {
 	caret_position = HitTestPoint(point);
 	Get(caret_position).SetCaret(point);

@@ -21,6 +21,19 @@ class TextView;
 
 class ListView : public ListLayout<Vertical> {
 public:
+	static auto Create(ScrollView& scroll_view) {
+		class ListViewDecorated : public Decorate<ListView, Padding, SolidColorBackground> {
+		public:
+			ListViewDecorated(ScrollView& scroll_view) : Base(scroll_view) {
+				cursor = Cursor::Text;
+				background = Color::White;
+				padding = Margin(20, 10, 20, 10);
+			}
+		};
+		return new ListViewDecorated(scroll_view);
+	}
+
+protected:
 	ListView(ScrollView& scroll_view);
 	~ListView();
 
@@ -108,16 +121,6 @@ private:
 protected:
 	virtual void OnMouseMsg(MouseMsg msg) override;
 	virtual void OnKeyMsg(KeyMsg msg) override;
-};
-
-
-class ListViewDecorated : public Decorate<ListView, Padding, SolidColorBackground> {
-public:
-	ListViewDecorated(ScrollView& scroll_view) : Base(scroll_view) {
-		cursor = Cursor::Text;
-		background = Color::White;
-		padding = Margin(20, 10, 20, 10);
-	}
 };
 
 
